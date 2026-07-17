@@ -286,8 +286,23 @@ function decodeComicId(comicId: string, fallbackLang = DEFAULT_LANG): ComicIdPar
   };
 }
 
+/**
+ * 判断 Original / Canvas。
+ * PC 路径多为 `/canvas/`，部分 deep link 为 `/challenge/`；
+ * 移动端 API 类型名一律用 `canvas`。
+ */
 function inferType(href: string): WebtoonType {
-  return href.includes("/challenge/") ? "canvas" : "webtoon";
+  const s = readString(href).toLowerCase();
+  if (
+    s.includes("/canvas/") ||
+    s.includes("/challenge/") ||
+    s.includes("episodelist/challenge") ||
+    s.includes("type=challenge") ||
+    s.includes("type=canvas")
+  ) {
+    return "canvas";
+  }
+  return "webtoon";
 }
 
 function normalizeHref(href: string): string {

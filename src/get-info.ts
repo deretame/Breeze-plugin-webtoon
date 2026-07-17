@@ -12,7 +12,7 @@ function buildInfo(uiLang: UiLang): InfoContract {
       describe: "",
     },
     describe: t(uiLang, "plugin.describe"),
-    version: "0.0.1",
+    version: "0.0.2",
     home: "https://www.webtoons.com",
     updateUrl: "",
     npmName: "breeze-plugin-webtoon",
@@ -25,7 +25,7 @@ export async function buildPluginInfo(): Promise<InfoContract> {
   return buildInfo(await resolveUiLang());
 }
 
-/** 构建产物 manifest：默认简体描述 */
+/** 构建产物 manifest：默认英文描述 */
 export function buildManifestInfo(): InfoContract {
-  return buildInfo("zh-hans");
+  return buildInfo("en");
 }
