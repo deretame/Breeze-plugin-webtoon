@@ -7,7 +7,7 @@
     "describe": ""
   },
   "describe": "WEBTOON 官方 Web 端源",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "home": "https://www.webtoons.com",
   "updateUrl": "",
   "npmName": "breeze-plugin-webtoon",
