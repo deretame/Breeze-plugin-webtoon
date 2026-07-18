@@ -874,9 +874,23 @@ async function loadChapterPages(
   if (!chapters.length) throw new Error(t(uiLang, "error.noEpisodes"));
 
   const chapterId = readString(payload.chapterId);
-  const chapter =
-    chapters.find((c) => c.requestId === chapterId || c.id === chapterId) ??
-    chapters[0];
+  let chapter = chapters.find(
+    (c) => c.requestId === chapterId || c.id === chapterId,
+  );
+
+  // 兜底：chapterId 是 comicId / 历史遗留值时，用 extern.episodeNo 定位
+  if (!chapter) {
+    const extern = toStringMap(payload.extern);
+    const episodeNo = Number(extern.episodeNo);
+    if (episodeNo > 0) {
+      chapter = chapters.find((c) => {
+        const cExtern = toStringMap(c.extern);
+        return Number(cExtern.episodeNo) === episodeNo;
+      });
+    }
+  }
+
+  chapter = chapter ?? chapters[0];
 
   const chapterExtern = toStringMap(chapter.extern);
   let viewerLink = readString(chapterExtern.viewerLink);
