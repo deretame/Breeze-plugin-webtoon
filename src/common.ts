@@ -3,6 +3,7 @@ export const NOT_FOUND_IMAGE_URL =
   "https://webtoons-static.pstatic.net/image/favicon/favicon.ico";
 export const PLACEHOLDER_IMAGE_PATH = "placeholder/image-404.png";
 export const WEBTOON_REFERER = "https://m.webtoons.com/";
+export const IMAGE_REFERER = "https://www.webtoons.com/";
 export const PC_BASE = "https://www.webtoons.com";
 export const MOBILE_BASE = "https://m.webtoons.com";
 

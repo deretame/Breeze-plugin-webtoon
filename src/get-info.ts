@@ -12,7 +12,7 @@ function buildInfo(uiLang: UiLang): InfoContract {
       describe: "",
     },
     describe: t(uiLang, "plugin.describe"),
-    version: "0.0.3",
+    version: "0.0.4",
     home: "https://www.webtoons.com",
     updateUrl: "",
     npmName: "breeze-plugin-webtoon",

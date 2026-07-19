@@ -29,7 +29,7 @@ export const UI_LANGS: UiLang[] = [
 type Dict = Record<string, string>;
 
 const en: Dict = {
-  "plugin.describe": "WEBTOON official web source",
+  "plugin.describe": "WEBTOON official App API source (Original + Canvas)",
   "settings.section.content": "Content",
   "settings.lang.label": "Default search language",
   "settings.lang.followSystem": "Follow system (current: {lang})",
@@ -38,6 +38,7 @@ const en: Dict = {
   "advancedSearch.lang": "Language",
   "meta.author": "Author",
   "meta.categories": "Genre",
+  "meta.type": "Type",
   "titleMeta.type": "Type: {type}",
   "titleMeta.chapters": "Chapters: {count}",
   "titleMeta.lang": "Language: {lang}",
@@ -46,9 +47,9 @@ const en: Dict = {
   "error.keywordRequired": "Please enter a search keyword",
   "error.comicIdRequired": "comicId is required",
   "error.noEpisodes": "No episodes available",
-  "error.noViewerLink": "Episode {id} is missing viewerLink",
-  "error.noImageList": "imageList not found on viewer page",
-  "error.emptyImageList": "imageList is empty",
+  "error.noViewerLink": "Episode {id} is invalid",
+  "error.noImageList": "image list not found",
+  "error.emptyImageList": "image list is empty",
   "error.detailUrlEmpty": "Detail page URL is empty",
   "error.cannotResolveDetail":
     "Cannot resolve detail URL (titleNo={titleNo}). Open again from search.",
@@ -59,15 +60,16 @@ const en: Dict = {
 };
 
 const zhHant: Dict = {
-  "plugin.describe": "WEBTOON 官方 Web 端源",
+  "plugin.describe": "WEBTOON 官方 App API 源（Original + Canvas）",
   "settings.section.content": "內容",
   "settings.lang.label": "預設搜尋語言",
-  "settings.lang.followSystem": "跟隨系統（目前 {lang}）",
+  "settings.lang.followSystem": "跟隨系統（目前：{lang}）",
   "settings.r18.label": "顯示 R18 / 成人內容",
   "advancedSearch.title": "進階搜尋",
   "advancedSearch.lang": "語言",
   "meta.author": "作者",
   "meta.categories": "分類",
+  "meta.type": "類型",
   "titleMeta.type": "類型：{type}",
   "titleMeta.chapters": "章節：{count}",
   "titleMeta.lang": "語言：{lang}",
@@ -89,15 +91,16 @@ const zhHant: Dict = {
 };
 
 const zhHans: Dict = {
-  "plugin.describe": "WEBTOON 官方 Web 端源",
+  "plugin.describe": "WEBTOON 官方 App API 源（Original + Canvas）",
   "settings.section.content": "内容",
   "settings.lang.label": "默认搜索语言",
-  "settings.lang.followSystem": "跟随系统（当前 {lang}）",
+  "settings.lang.followSystem": "跟随系统（当前：{lang}）",
   "settings.r18.label": "显示 R18 / 成人内容",
   "advancedSearch.title": "高级搜索",
   "advancedSearch.lang": "语言",
   "meta.author": "作者",
   "meta.categories": "分类",
+  "meta.type": "类型",
   "titleMeta.type": "类型：{type}",
   "titleMeta.chapters": "章节：{count}",
   "titleMeta.lang": "语言：{lang}",
