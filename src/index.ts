@@ -1,7 +1,4 @@
-import type {
-  CapabilitiesBundleContract,
-  InfoContract,
-} from "breeze-plugin-kit";
+import type { CapabilitiesBundleContract, InfoContract } from "breeze-plugin-kit";
 import { PLUGIN_ID } from "./common";
 import { buildPluginInfo } from "./get-info";
 import {

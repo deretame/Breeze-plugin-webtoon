@@ -1,6 +1,5 @@
 export const PLUGIN_ID = "7efa2a7c-da0f-4db1-9167-98045ae37fdb";
-export const NOT_FOUND_IMAGE_URL =
-  "https://webtoons-static.pstatic.net/image/favicon/favicon.ico";
+export const NOT_FOUND_IMAGE_URL = "https://webtoons-static.pstatic.net/image/favicon/favicon.ico";
 export const PLACEHOLDER_IMAGE_PATH = "placeholder/image-404.png";
 export const WEBTOON_REFERER = "https://m.webtoons.com/";
 export const IMAGE_REFERER = "https://www.webtoons.com/";
@@ -9,6 +8,7 @@ export const MOBILE_BASE = "https://m.webtoons.com";
 
 import type {
   ActionItem,
+  ComicInfoPageAction,
   ComicListItem,
   ImageItem,
   MetadataListItem,
@@ -34,7 +34,7 @@ export function trimTrailing(value: unknown): string {
 
 export function createActionItem(
   name: unknown,
-  onTap: StringMap = {},
+  onTap: ComicInfoPageAction | null = null,
   extern: StringMap = {},
 ): ActionItem {
   return {
@@ -62,11 +62,7 @@ export function createImage(
   };
 }
 
-export function createBasicMetadata(
-  type: string,
-  name: string,
-  values: unknown,
-): MetadataListItem {
+export function createBasicMetadata(type: string, name: string, values: unknown): MetadataListItem {
   const list = Array.isArray(values) ? values : values == null ? [] : [values];
   return {
     type,
@@ -102,12 +98,7 @@ export function createComicItem(id: string, title: string): ComicListItem {
   } satisfies ComicListItem;
 }
 
-export function createPaging(
-  page = 1,
-  pages = 1,
-  total = 0,
-  hasReachedMax = true,
-): PagingInfo {
+export function createPaging(page = 1, pages = 1, total = 0, hasReachedMax = true): PagingInfo {
   return {
     page,
     pages: Math.max(1, pages),

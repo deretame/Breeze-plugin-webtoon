@@ -8,6 +8,7 @@ import type {
   ComicListItem,
   FetchImageBytesPayload,
   FetchImageBytesResult,
+  OpenSearchAction,
   ReadSnapshotContract,
   ReadSnapshotPayload,
   SearchComicPayload,
@@ -35,12 +36,7 @@ import {
   toStringMap,
   trimTrailing,
 } from "./common";
-import {
-  type UiLang,
-  getHostLocaleRaw,
-  resolveUiLang,
-  t,
-} from "./i18n";
+import { getHostLocaleRaw, resolveUiLang, t } from "./i18n";
 
 export type WebtoonType = AppWebtoonType;
 
@@ -90,12 +86,7 @@ function mapLocaleToWebtoonLang(localeRaw: string): string {
   if (!raw) return DEFAULT_LANG;
   if (isSupportedLang(raw)) return raw;
   if (raw.startsWith("zh")) {
-    if (
-      raw.includes("hant") ||
-      raw.includes("tw") ||
-      raw.includes("hk") ||
-      raw.includes("mo")
-    ) {
+    if (raw.includes("hant") || raw.includes("tw") || raw.includes("hk") || raw.includes("mo")) {
       return "zh-hant";
     }
     return "zh-hant";
@@ -133,15 +124,10 @@ async function resolveSearchLang(): Promise<string> {
 
 function encodeComicId(parts: ComicIdParts): string {
   const href = parts.href || "";
-  return [parts.lang, parts.type, parts.titleNo, href]
-    .map((s) => encodeURIComponent(s))
-    .join("|");
+  return [parts.lang, parts.type, parts.titleNo, href].map((s) => encodeURIComponent(s)).join("|");
 }
 
-function decodeComicId(
-  comicId: string,
-  fallbackLang = DEFAULT_LANG,
-): ComicIdParts {
+function decodeComicId(comicId: string, fallbackLang = DEFAULT_LANG): ComicIdParts {
   const raw = readString(comicId);
   if (!raw) {
     throw new Error("comicId 不能为空");
@@ -182,7 +168,8 @@ function imageFileName(url: string, index: number): string {
   return `${String(index + 1).padStart(4, "0")}.jpg`;
 }
 
-function createSearchAction(keyword: string, lang?: string): StringMap {
+/** metadata 点击：打开本插件搜索 */
+function createSearchAction(keyword: string, lang?: string): OpenSearchAction {
   return {
     type: "openSearch",
     payload: {
@@ -204,17 +191,12 @@ function emptyCreator() {
       path: "",
       extern: {},
     },
-    onTap: {},
+    onTap: null,
     extern: {},
   };
 }
 
-function createClickableMetadata(
-  type: string,
-  name: string,
-  values: string[],
-  lang?: string,
-) {
+function createClickableMetadata(type: string, name: string, values: string[], lang?: string) {
   const list = values
     .map((v) => trimTrailing(v).trimStart())
     .map((v) => v.trim())
@@ -223,25 +205,18 @@ function createClickableMetadata(
   return {
     type,
     name: trimTrailing(name),
-    value: list.map((item) =>
-      createActionItem(item, createSearchAction(item, lang)),
-    ),
+    value: list.map((item) => createActionItem(item, createSearchAction(item, lang))),
   };
 }
 
-function createTitleMetaItems(
-  names: Array<string | number | null | undefined>,
-) {
+function createTitleMetaItems(names: Array<string | number | null | undefined>) {
   return names
     .map((n) => trimTrailing(n))
     .filter((n) => n.length > 0)
     .map((n) => createActionItem(n));
 }
 
-function mapEpisodesToChapters(
-  episodes: AppEpisode[],
-  comicId: string,
-): ChapterSummary[] {
+function mapEpisodesToChapters(episodes: AppEpisode[], comicId: string): ChapterSummary[] {
   return episodes.map((ep, index) => {
     const id = String(ep.episodeNo);
     return {
@@ -293,9 +268,7 @@ function pagesFromImages(
 // Breeze fnPath
 // ---------------------------------------------------------------------------
 
-export async function searchComic(
-  payload: SearchComicPayload = {},
-): Promise<SearchResultContract> {
+export async function searchComic(payload: SearchComicPayload = {}): Promise<SearchResultContract> {
   const uiLang = await resolveUiLang();
   const allowR18 = await loadR18Preference();
   const extern = toStringMap(payload.extern);
@@ -306,12 +279,15 @@ export async function searchComic(
   const preferred = await resolveSearchLang();
   const fromExtern = readString(extern.lang);
   const lang =
-    (fromExtern && isSupportedLang(fromExtern) ? fromExtern : "") ||
-    preferred ||
-    DEFAULT_LANG;
+    (fromExtern && isSupportedLang(fromExtern) ? fromExtern : "") || preferred || DEFAULT_LANG;
 
-  const { hits, hasNext, total, webtoonTotal, canvasTotal } =
-    await searchMerged(keyword, lang, page, SEARCH_PAGE_SIZE, allowR18);
+  const { hits, hasNext, total, webtoonTotal, canvasTotal } = await searchMerged(
+    keyword,
+    lang,
+    page,
+    SEARCH_PAGE_SIZE,
+    allowR18,
+  );
 
   const results: ComicListItem[] = hits.map((hit) => {
     const titleNo = String(hit.titleNo);
@@ -323,16 +299,11 @@ export async function searchComic(
       href: "",
     });
     const author =
-      [hit.writingAuthorName, hit.pictureAuthorName]
-        .filter(Boolean)
-        .join(" / ") ||
+      [hit.writingAuthorName, hit.pictureAuthorName].filter(Boolean).join(" / ") ||
       hit.writingAuthorName ||
       "";
     const coverPath = `comic/${titleNo}/cover.jpg`;
-    const typeLabel = t(
-      uiLang,
-      type === "canvas" ? "type.canvas" : "type.original",
-    );
+    const typeLabel = t(uiLang, type === "canvas" ? "type.canvas" : "type.original");
 
     return {
       source: PLUGIN_ID,
@@ -351,18 +322,8 @@ export async function searchComic(
         extern: {},
       }),
       metadata: [
-        createClickableMetadata(
-          "author",
-          t(uiLang, "meta.author"),
-          author ? [author] : [],
-          lang,
-        ),
-        createClickableMetadata(
-          "type",
-          t(uiLang, "meta.type"),
-          [typeLabel],
-          lang,
-        ),
+        createClickableMetadata("author", t(uiLang, "meta.author"), author ? [author] : [], lang),
+        createClickableMetadata("type", t(uiLang, "meta.type"), [typeLabel], lang),
       ].filter((item): item is NonNullable<typeof item> => item != null),
       raw: {
         title: hit.title,
@@ -447,10 +408,7 @@ export async function getComicDetail(
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
-  const typeLabel = t(
-    uiLang,
-    parts.type === "canvas" ? "type.canvas" : "type.original",
-  );
+  const typeLabel = t(uiLang, parts.type === "canvas" ? "type.canvas" : "type.original");
 
   return {
     source: PLUGIN_ID,
@@ -493,12 +451,7 @@ export async function getComicDetail(
               detail.author ? [detail.author] : [],
               parts.lang,
             ),
-            createClickableMetadata(
-              "categories",
-              t(uiLang, "meta.categories"),
-              genres,
-              parts.lang,
-            ),
+            createClickableMetadata("categories", t(uiLang, "meta.categories"), genres, parts.lang),
           ].filter((item): item is NonNullable<typeof item> => item != null),
           extern: {
             type: parts.type,
@@ -515,8 +468,11 @@ export async function getComicDetail(
         isFavourite: false,
         isLiked: false,
         allowComments: false,
+        allowCommentsReason: t(uiLang, "allow.comments"),
         allowLike: false,
+        allowLikeReason: t(uiLang, "allow.like"),
         allowCollected: false,
+        allowCollectedReason: t(uiLang, "allow.collected"),
         allowDownload: true,
         extern: {
           type: parts.type,
@@ -530,9 +486,7 @@ export async function getComicDetail(
   };
 }
 
-async function loadChapterPages(
-  payload: ChapterPayload | ReadSnapshotPayload,
-): Promise<{
+async function loadChapterPages(payload: ChapterPayload | ReadSnapshotPayload): Promise<{
   comicId: string;
   title: string;
   chapter: ChapterSummary & { pages: ChapterPage[] };
@@ -554,9 +508,7 @@ async function loadChapterPages(
   if (!chapters.length) throw new Error(t(uiLang, "error.noEpisodes"));
 
   const chapterId = readString(payload.chapterId);
-  let chapter = chapters.find(
-    (c) => c.requestId === chapterId || c.id === chapterId,
-  );
+  let chapter = chapters.find((c) => c.requestId === chapterId || c.id === chapterId);
 
   if (!chapter) {
     const extern = toStringMap(payload.extern);
@@ -571,8 +523,7 @@ async function loadChapterPages(
 
   chapter = chapter ?? chapters[0];
   const chapterExtern = toStringMap(chapter.extern);
-  const episodeNo =
-    Number(chapterExtern.episodeNo) || Number(chapter.id) || 0;
+  const episodeNo = Number(chapterExtern.episodeNo) || Number(chapter.id) || 0;
   if (!episodeNo) {
     throw new Error(t(uiLang, "error.noViewerLink", { id: chapter.id }));
   }
@@ -583,21 +534,12 @@ async function loadChapterPages(
   const lang = parts.lang;
   const titleNo = parts.titleNo;
 
-  const { images, episodeTitle } = await fetchEpisodeImages(
-    Number(titleNo),
-    episodeNo,
-    type,
-    lang,
-  );
+  const { images, episodeTitle } = await fetchEpisodeImages(Number(titleNo), episodeNo, type, lang);
   if (!images.length) {
     throw new Error(t(uiLang, "error.emptyImageList"));
   }
 
-  const pages = pagesFromImages(
-    detail.comicId,
-    chapter.storageChapterId,
-    images,
-  );
+  const pages = pagesFromImages(detail.comicId, chapter.storageChapterId, images);
 
   return {
     comicId: detail.comicId,
@@ -616,9 +558,7 @@ async function loadChapterPages(
   };
 }
 
-export async function getChapter(
-  payload: ChapterPayload = {},
-): Promise<ChapterContentContract> {
+export async function getChapter(payload: ChapterPayload = {}): Promise<ChapterContentContract> {
   const loaded = await loadChapterPages(payload);
   return {
     source: PLUGIN_ID,

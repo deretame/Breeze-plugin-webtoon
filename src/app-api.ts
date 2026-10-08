@@ -5,8 +5,7 @@
 
 const API_BASE = "https://global.apis.naver.com/lineWebtoon/webtoon";
 export const IMAGE_CDN = "https://webtoon-phinf.pstatic.net";
-const HMAC_SECRET =
-  "gUtPzJFZch4ZyAGviiyH94P99lQ3pFdRTwpJWDlSGFfwgpr6ses5ALOxWHOIT7R1";
+const HMAC_SECRET = "gUtPzJFZch4ZyAGviiyH94P99lQ3pFdRTwpJWDlSGFfwgpr6ses5ALOxWHOIT7R1";
 const WTU = "a1b2c3d4e5f6789012345678901234ab";
 const UA = "nApps (Android 13; SM-G991B; en; 3.9.6)";
 
@@ -79,10 +78,7 @@ function commonQs(lang: string): string {
 export function signUrl(url: string): string {
   const msgpad = String(Date.now());
   const payload = url.substring(0, Math.min(255, url.length)) + msgpad;
-  const md = getCrypto()
-    .createHmac("sha1", HMAC_SECRET)
-    .update(payload)
-    .digest("base64");
+  const md = getCrypto().createHmac("sha1", HMAC_SECRET).update(payload).digest("base64");
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}msgpad=${msgpad}&md=${encodeURIComponent(md)}`;
 }
@@ -134,20 +130,13 @@ async function apiGet(
   }
   const code = json.message?.code;
   if (code != null && code !== 0 && json.message?.result == null) {
-    throw new Error(
-      uiLangError(
-        `API ${code}: ${json.message?.message || "error"}`,
-      ),
-    );
+    throw new Error(uiLangError(`API ${code}: ${json.message?.message || "error"}`));
   }
   return (json.message?.result ?? {}) as Record<string, unknown>;
 }
 
 function asBucket(raw: unknown): BucketPage {
-  const o = (raw && typeof raw === "object" ? raw : {}) as Record<
-    string,
-    unknown
-  >;
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const list = Array.isArray(o.titleList) ? o.titleList : [];
   return {
     start: Number(o.start ?? 1) || 1,
@@ -157,18 +146,13 @@ function asBucket(raw: unknown): BucketPage {
   };
 }
 
-function mapHit(
-  item: Record<string, unknown>,
-  type: AppWebtoonType,
-): AppSearchHit {
+function mapHit(item: Record<string, unknown>, type: AppWebtoonType): AppSearchHit {
   return {
     titleNo: Number(item.titleNo) || 0,
     title: String(item.title ?? item.titleName ?? "").trim(),
     writingAuthorName: String(item.writingAuthorName ?? "").trim() || undefined,
     pictureAuthorName: String(item.pictureAuthorName ?? "").trim() || undefined,
-    thumbnail: absImageUrl(
-      String(item.thumbnail ?? item.titleThumbnail ?? item.iconImage ?? ""),
-    ),
+    thumbnail: absImageUrl(String(item.thumbnail ?? item.titleThumbnail ?? item.iconImage ?? "")),
     likeitCount: Number(item.likeitCount ?? 0) || 0,
     readCount: Number(item.readCount ?? 0) || 0,
     ageGradeNotice: Boolean(item.ageGradeNotice),
@@ -329,9 +313,7 @@ export async function fetchTitleDetail(
       synopsis: pickStr(t.sourceSynopsis, t.readingSynopsis, t.synopsis),
       author,
       genre: pickStr(t.representGenre, t.genre, t.representGenreCode),
-      thumbnail: absImageUrl(
-        pickStr(t.titleThumbnailUrl, t.thumbnail, t.thumbnailUrl),
-      ),
+      thumbnail: absImageUrl(pickStr(t.titleThumbnailUrl, t.thumbnail, t.thumbnailUrl)),
       readCount: Number(t.readCount ?? 0) || 0,
       favoriteCount: Number(t.favoriteCount ?? t.likeitCount ?? 0) || 0,
       mature:
@@ -353,9 +335,7 @@ export async function fetchTitleDetail(
     {};
   const writing = pickStr(t.writingAuthorName);
   const picture = pickStr(t.pictureAuthorName);
-  const author =
-    [writing, picture].filter(Boolean).join(" / ") ||
-    pickStr(t.authorName, t.author);
+  const author = [writing, picture].filter(Boolean).join(" / ") || pickStr(t.authorName, t.author);
   const rating = pickStr(t.contentRating, t.ageGrade).toUpperCase();
   return {
     titleNo,
@@ -363,9 +343,7 @@ export async function fetchTitleDetail(
     synopsis: pickStr(t.synopsis, t.summary),
     author,
     genre: pickStr(t.representGenre, t.genre),
-    thumbnail: absImageUrl(
-      pickStr(t.thumbnail, t.titleThumbnail, t.thumbnailUrl, t.imageUrl),
-    ),
+    thumbnail: absImageUrl(pickStr(t.thumbnail, t.titleThumbnail, t.thumbnailUrl, t.imageUrl)),
     readCount: Number(t.readCount ?? 0) || 0,
     favoriteCount: Number(t.favoriteCount ?? t.likeitCount ?? 0) || 0,
     mature:
@@ -382,9 +360,7 @@ function mapEpisode(raw: Record<string, unknown>): AppEpisode {
     episodeNo: Number(raw.episodeNo) || 0,
     episodeTitle: String(raw.episodeTitle ?? raw.title ?? "").trim(),
     episodeSeq: Number(raw.episodeSeq ?? 0) || undefined,
-    thumbnailImageUrl: absImageUrl(
-      String(raw.thumbnailImageUrl ?? raw.thumbnail ?? ""),
-    ),
+    thumbnailImageUrl: absImageUrl(String(raw.thumbnailImageUrl ?? raw.thumbnail ?? "")),
     exposureYmdt: Number(raw.exposureYmdt ?? 0) || undefined,
     serviceStatus: String(raw.serviceStatus ?? ""),
     exposureType: String(raw.exposureType ?? ""),
@@ -409,10 +385,7 @@ export async function fetchAllEpisodes(
     .map((x) => mapEpisode(x as Record<string, unknown>))
     .filter((e) => e.episodeNo > 0);
   // API 默认新→旧，阅读列表改为旧→新
-  if (
-    episodes.length > 1 &&
-    episodes[0].episodeNo > episodes[episodes.length - 1].episodeNo
-  ) {
+  if (episodes.length > 1 && episodes[0].episodeNo > episodes[episodes.length - 1].episodeNo) {
     episodes.reverse();
   }
   return episodes;
@@ -444,11 +417,7 @@ export async function fetchEpisodeImages(
       .filter((i) => i.url)
       .sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder));
     return {
-      episodeTitle: pickStr(
-        ep.readingEpisodeTitle,
-        ep.sourceEpisodeTitle,
-        ep.episodeTitle,
-      ),
+      episodeTitle: pickStr(ep.readingEpisodeTitle, ep.sourceEpisodeTitle, ep.episodeTitle),
       images,
     };
   }

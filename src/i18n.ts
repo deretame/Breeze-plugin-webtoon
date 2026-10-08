@@ -5,26 +5,9 @@ import { readString } from "./common";
  * - 内容搜索仍只用官网语言（无简体区）
  * - UI 额外支持简体：App 为 zh-CN / zh-Hans 时用 zh-hans 文案
  */
-export type UiLang =
-  | "en"
-  | "zh-hant"
-  | "zh-hans"
-  | "th"
-  | "id"
-  | "es"
-  | "fr"
-  | "de";
+export type UiLang = "en" | "zh-hant" | "zh-hans" | "th" | "id" | "es" | "fr" | "de";
 
-export const UI_LANGS: UiLang[] = [
-  "en",
-  "zh-hant",
-  "zh-hans",
-  "th",
-  "id",
-  "es",
-  "fr",
-  "de",
-];
+export const UI_LANGS: UiLang[] = ["en", "zh-hant", "zh-hans", "th", "id", "es", "fr", "de"];
 
 type Dict = Record<string, string>;
 
@@ -57,6 +40,9 @@ const en: Dict = {
   "error.http": "HTTP {status}: {url}",
   "error.r18Blocked": "This title is mature content. Enable R18 in plugin settings.",
   "error.urlRequired": "url is required",
+  "allow.comments": "WEBTOON does not support comments yet",
+  "allow.like": "WEBTOON does not support likes yet",
+  "allow.collected": "WEBTOON does not support favorites yet",
 };
 
 const zhHant: Dict = {
@@ -82,12 +68,14 @@ const zhHant: Dict = {
   "error.noImageList": "未在 viewer 頁面找到 imageList",
   "error.emptyImageList": "imageList 為空",
   "error.detailUrlEmpty": "詳情頁 URL 為空",
-  "error.cannotResolveDetail":
-    "無法解析詳情頁 URL (titleNo={titleNo})，請從搜尋結果重新開啟",
+  "error.cannotResolveDetail": "無法解析詳情頁 URL (titleNo={titleNo})，請從搜尋結果重新開啟",
   "error.downloadFailed": "下載失敗：{status} {statusText}",
   "error.http": "HTTP {status}: {url}",
   "error.r18Blocked": "此作品為成人內容，請在外掛設定中開啟 R18",
   "error.urlRequired": "url 不能為空",
+  "allow.comments": "WEBTOON 暫不支援評論",
+  "allow.like": "WEBTOON 暫不支援點讚",
+  "allow.collected": "WEBTOON 暫不支援收藏",
 };
 
 const zhHans: Dict = {
@@ -113,12 +101,14 @@ const zhHans: Dict = {
   "error.noImageList": "未在 viewer 页面找到 imageList",
   "error.emptyImageList": "imageList 为空",
   "error.detailUrlEmpty": "详情页 URL 为空",
-  "error.cannotResolveDetail":
-    "无法解析详情页 URL (titleNo={titleNo})，请从搜索结果重新打开",
+  "error.cannotResolveDetail": "无法解析详情页 URL (titleNo={titleNo})，请从搜索结果重新打开",
   "error.downloadFailed": "下载失败：{status} {statusText}",
   "error.http": "HTTP {status}: {url}",
   "error.r18Blocked": "此作品为成人内容，请在插件设置中开启 R18",
   "error.urlRequired": "url 不能为空",
+  "allow.comments": "WEBTOON 暂不支持评论",
+  "allow.like": "WEBTOON 暂不支持点赞",
+  "allow.collected": "WEBTOON 暂不支持收藏",
 };
 
 const th: Dict = {
@@ -158,8 +148,7 @@ const id: Dict = {
   "error.keywordRequired": "Masukkan kata kunci pencarian",
   "error.comicIdRequired": "comicId wajib diisi",
   "error.noEpisodes": "Belum ada episode",
-  "error.r18Blocked":
-    "Judul ini konten dewasa. Aktifkan R18 di pengaturan plugin.",
+  "error.r18Blocked": "Judul ini konten dewasa. Aktifkan R18 di pengaturan plugin.",
 };
 
 const es: Dict = {
@@ -179,8 +168,7 @@ const es: Dict = {
   "error.keywordRequired": "Introduce una palabra clave",
   "error.comicIdRequired": "comicId es obligatorio",
   "error.noEpisodes": "No hay episodios",
-  "error.r18Blocked":
-    "Este título es contenido adulto. Activa R18 en la configuración del plugin.",
+  "error.r18Blocked": "Este título es contenido adulto. Activa R18 en la configuración del plugin.",
 };
 
 const fr: Dict = {
@@ -221,8 +209,7 @@ const de: Dict = {
   "error.keywordRequired": "Bitte Suchbegriff eingeben",
   "error.comicIdRequired": "comicId ist erforderlich",
   "error.noEpisodes": "Keine Episoden verfügbar",
-  "error.r18Blocked":
-    "Dieser Titel ist Mature-Inhalt. R18 in den Plugin-Einstellungen aktivieren.",
+  "error.r18Blocked": "Dieser Titel ist Mature-Inhalt. R18 in den Plugin-Einstellungen aktivieren.",
 };
 
 const TABLES: Record<UiLang, Dict> = {
@@ -245,12 +232,7 @@ export function mapLocaleToUiLang(localeRaw: string): UiLang {
 
   // 中文：中国大陆 / 简体 → 简体文案；台港澳 / 繁体 → 繁体文案
   if (raw.startsWith("zh")) {
-    if (
-      raw.includes("hant") ||
-      raw.includes("tw") ||
-      raw.includes("hk") ||
-      raw.includes("mo")
-    ) {
+    if (raw.includes("hant") || raw.includes("tw") || raw.includes("hk") || raw.includes("mo")) {
       return "zh-hant";
     }
     // zh / zh-CN / zh-Hans / zh-SG 等
@@ -265,9 +247,7 @@ export function mapLocaleToUiLang(localeRaw: string): UiLang {
 
 export async function getHostLocaleRaw(): Promise<string> {
   try {
-    const bridge = (
-      globalThis as { bridge?: { call?: (...args: unknown[]) => unknown } }
-    ).bridge;
+    const bridge = (globalThis as { bridge?: { call?: (...args: unknown[]) => unknown } }).bridge;
     if (typeof bridge?.call !== "function") return "";
     const raw = await Promise.resolve(bridge.call("dart.getLocaleInfo"));
     const text = typeof raw === "string" ? raw : JSON.stringify(raw ?? "");
@@ -278,10 +258,7 @@ export async function getHostLocaleRaw(): Promise<string> {
       language?: unknown;
     };
     return (
-      readString(info.locale) ||
-      readString(info.systemLocale) ||
-      readString(info.language) ||
-      ""
+      readString(info.locale) || readString(info.systemLocale) || readString(info.language) || ""
     );
   } catch {
     return "";
@@ -293,11 +270,7 @@ export async function resolveUiLang(): Promise<UiLang> {
   return mapLocaleToUiLang(await getHostLocaleRaw());
 }
 
-export function t(
-  lang: UiLang,
-  key: string,
-  vars?: Record<string, string | number>,
-): string {
+export function t(lang: UiLang, key: string, vars?: Record<string, string | number>): string {
   const table = TABLES[lang] || en;
   let text = table[key] ?? en[key] ?? key;
   if (vars) {

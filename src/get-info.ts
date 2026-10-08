@@ -7,12 +7,8 @@ function buildInfo(uiLang: UiLang): InfoContract {
     name: "WEBTOON",
     uuid: PLUGIN_ID,
     iconUrl: "https://webtoons-static.pstatic.net/image/favicon/favicon.ico",
-    creator: {
-      name: "",
-      describe: "",
-    },
     describe: t(uiLang, "plugin.describe"),
-    version: "0.0.4",
+    version: "0.0.5",
     home: "https://www.webtoons.com",
     updateUrl: "",
     npmName: "breeze-plugin-webtoon",
