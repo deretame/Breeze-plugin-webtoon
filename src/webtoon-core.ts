@@ -8,7 +8,13 @@ import type {
   ComicListItem,
   FetchImageBytesPayload,
   FetchImageBytesResult,
+  FunctionPageActionGridItem,
+  FunctionPageContract,
+  GetPluginHomePagesBundlePayload,
   OpenSearchAction,
+  PluginCloudFavoritePagesBundleContract,
+  PluginHomePagesBundleContract,
+  PluginHomeTab,
   ReadSnapshotContract,
   ReadSnapshotPayload,
   SearchComicPayload,
@@ -18,11 +24,15 @@ import type {
 } from "breeze-plugin-kit";
 import { pluginConfig, runtime } from "breeze-plugin-kit";
 import {
+  absImageUrl,
   fetchAllEpisodes,
+  fetchCanvasLatest,
   fetchEpisodeImages,
+  fetchHomeRecommendSections,
   fetchTitleDetail,
   searchMerged,
   type AppEpisode,
+  type AppSearchHit,
   type AppWebtoonType,
 } from "./app-api";
 import {
@@ -263,6 +273,56 @@ function pagesFromImages(
     };
   });
 }
+function mapHitToComicItem(
+  hit: AppSearchHit,
+  lang: string,
+  uiLang: Parameters<typeof t>[0],
+): ComicListItem {
+  const titleNo = String(hit.titleNo);
+  const type = hit.type;
+  const comicId = encodeComicId({ titleNo, type, lang, href: "" });
+  const author =
+    [hit.writingAuthorName, hit.pictureAuthorName].filter(Boolean).join(" / ") ||
+    hit.writingAuthorName ||
+    "";
+  const coverPath = `comic/${titleNo}/cover.jpg`;
+  const typeLabel = t(uiLang, type === "canvas" ? "type.canvas" : "type.original");
+  return {
+    source: PLUGIN_ID,
+    id: comicId,
+    title: hit.title,
+    subtitle: author,
+    finished: false,
+    likesCount: hit.likeitCount ?? 0,
+    viewsCount: hit.readCount ?? 0,
+    updatedAt: "",
+    cover: createImage({
+      id: titleNo,
+      url: hit.thumbnail || NOT_FOUND_IMAGE_URL,
+      name: "cover.jpg",
+      path: coverPath,
+      extern: {},
+    }),
+    metadata: [
+      createClickableMetadata("author", t(uiLang, "meta.author"), author ? [author] : [], lang),
+      createClickableMetadata("type", t(uiLang, "meta.type"), [typeLabel], lang),
+    ].filter((item): item is NonNullable<typeof item> => item != null),
+    raw: {
+      title: hit.title,
+      author,
+      titleNo,
+      type,
+      lang,
+      mature: Boolean(hit.ageGradeNotice || hit.unsuitableForChildren),
+    },
+    extern: {
+      type,
+      lang,
+      titleNo,
+      mature: Boolean(hit.ageGradeNotice || hit.unsuitableForChildren),
+    },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Breeze fnPath
@@ -289,58 +349,7 @@ export async function searchComic(payload: SearchComicPayload = {}): Promise<Sea
     allowR18,
   );
 
-  const results: ComicListItem[] = hits.map((hit) => {
-    const titleNo = String(hit.titleNo);
-    const type = hit.type;
-    const comicId = encodeComicId({
-      titleNo,
-      type,
-      lang,
-      href: "",
-    });
-    const author =
-      [hit.writingAuthorName, hit.pictureAuthorName].filter(Boolean).join(" / ") ||
-      hit.writingAuthorName ||
-      "";
-    const coverPath = `comic/${titleNo}/cover.jpg`;
-    const typeLabel = t(uiLang, type === "canvas" ? "type.canvas" : "type.original");
-
-    return {
-      source: PLUGIN_ID,
-      id: comicId,
-      title: hit.title,
-      subtitle: author,
-      finished: false,
-      likesCount: hit.likeitCount ?? 0,
-      viewsCount: hit.readCount ?? 0,
-      updatedAt: "",
-      cover: createImage({
-        id: titleNo,
-        url: hit.thumbnail || NOT_FOUND_IMAGE_URL,
-        name: "cover.jpg",
-        path: coverPath,
-        extern: {},
-      }),
-      metadata: [
-        createClickableMetadata("author", t(uiLang, "meta.author"), author ? [author] : [], lang),
-        createClickableMetadata("type", t(uiLang, "meta.type"), [typeLabel], lang),
-      ].filter((item): item is NonNullable<typeof item> => item != null),
-      raw: {
-        title: hit.title,
-        author,
-        titleNo,
-        type,
-        lang,
-        mature: Boolean(hit.ageGradeNotice || hit.unsuitableForChildren),
-      },
-      extern: {
-        type,
-        lang,
-        titleNo,
-        mature: Boolean(hit.ageGradeNotice || hit.unsuitableForChildren),
-      },
-    };
-  });
+  const results: ComicListItem[] = hits.map((hit) => mapHitToComicItem(hit, lang, uiLang));
 
   const pages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE) || 1);
   const paging = createPaging(page, pages, total, !hasNext);
@@ -767,5 +776,204 @@ export async function getAdvancedSearchScheme(): Promise<{
       ],
     },
     data: { values: { lang } },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 插件首页 bundle（无登录、无收藏：仅首页 tabs，无 cloudFavorite）
+//
+// Katakana 项目曾暴露「新着 / ランキング」的 Web 系列表，
+// 现行 App API 下实测结论：
+// - home.json：编辑精选（topBanner / genre1 / genre2 / topRated / challengeLeague），单次快照；
+// - challengeTitleList.json：Canvas 全量分页（startIndex+pageSize，1 起，有 totalCount），
+//   但 genreCode / sort 类参数实测被忽略；
+// - titleList.json（Original）：返回全量快照（不分页、参数被忽略），不适合做可分页 scene。
+// 因此首页 tabs 全部走 page（功能页快照），不伪造可分页的 scene：
+// 推荐（home.json 编辑精选，原创+Canvas 混合）/ 原创（home.json 内 Original 分区）/ Canvas（分页快照第一页）。
+// ---------------------------------------------------------------------------
+
+const HOME_SNAPSHOT_PAGE_SIZE = 20;
+
+type HomePagePayload = GetPluginHomePagesBundlePayload & {
+  lang?: string;
+};
+
+async function resolveHomeLang(payload: HomePagePayload = {}): Promise<string> {
+  const extern = toStringMap(payload.extern);
+  const fromExtern = readString(extern.lang || payload.lang);
+  return (
+    (fromExtern && isSupportedLang(fromExtern) ? fromExtern : "") || (await resolveSearchLang())
+  );
+}
+
+function filterMatureGridItems(
+  items: FunctionPageActionGridItem[],
+  allowR18: boolean,
+): FunctionPageActionGridItem[] {
+  if (allowR18) return items;
+  return items.filter((item) => !toStringMap(item.raw).mature);
+}
+
+type HomeSectionInput = {
+  subtitle?: string;
+  titles: Array<Record<string, unknown>>;
+};
+
+/** 原始分区条目 → ActionGrid 卡（点卡进详情；R18 过滤调用方按 raw.mature 做） */
+function mapSectionToGridItems(
+  section: HomeSectionInput,
+  type: WebtoonType,
+  lang: string,
+): FunctionPageActionGridItem[] {
+  const items: FunctionPageActionGridItem[] = [];
+  for (const raw of section.titles) {
+    const titleNo = Number(raw.titleNo) || 0;
+    if (!titleNo || !String(raw.title ?? "").trim()) continue;
+    const comicId = encodeComicId({ titleNo: String(titleNo), type, lang, href: "" });
+    items.push({
+      title: String(raw.title),
+      cover: {
+        url: absImageUrl(String(raw.thumbnail ?? "")) || NOT_FOUND_IMAGE_URL,
+        path: `comic/${titleNo}/cover.jpg`,
+        extern: { titleNo, type, lang },
+      },
+      action: {
+        type: "openComicInfo",
+        payload: { comicId, extern: { titleNo: String(titleNo), type, lang } },
+      },
+      raw: {
+        titleNo,
+        type,
+        lang,
+        subtitle: section.subtitle ?? "",
+        mature: Boolean(raw.ageGradeNotice || raw.unsuitableForChildren),
+      },
+    });
+  }
+  return items;
+}
+
+function buildSnapshotPage(
+  title: string,
+  items: FunctionPageActionGridItem[],
+): FunctionPageContract {
+  return {
+    source: PLUGIN_ID,
+    scheme: {
+      version: "1.0.0",
+      type: "page",
+      title,
+      body: { type: "list", children: [{ type: "action-grid", key: "items" }] },
+    },
+    data: { items, hasReachedMax: true },
+  };
+}
+
+/**
+ * 推荐：home.json 编辑精选（推荐位 + Original 题材分区 + Canvas 热门），单页快照。
+ * lang 跟随搜索语言设置（与搜索/详情一致）。
+ */
+async function getRecommendFunctionPage(
+  payload: HomePagePayload = {},
+): Promise<FunctionPageContract> {
+  const uiLang = await resolveUiLang();
+  const lang = await resolveHomeLang(payload);
+  const allowR18 = await loadR18Preference();
+  const sections = await fetchHomeRecommendSections(lang, 10);
+  const items: FunctionPageActionGridItem[] = [];
+  for (const section of sections) {
+    items.push(...mapSectionToGridItems(section, section.type, lang));
+  }
+  return buildSnapshotPage(t(uiLang, "home.recommend"), filterMatureGridItems(items, allowR18));
+}
+
+/** 原创：home.json 内 Original 分区快照（genre1/genre2/topRated 内的 Original 条目） */
+async function getOriginalFunctionPage(
+  payload: HomePagePayload = {},
+): Promise<FunctionPageContract> {
+  const uiLang = await resolveUiLang();
+  const lang = await resolveHomeLang(payload);
+  const allowR18 = await loadR18Preference();
+  const sections = (await fetchHomeRecommendSections(lang, 10)).filter(
+    (section) => section.type === "webtoon",
+  );
+  const items: FunctionPageActionGridItem[] = [];
+  for (const section of sections) {
+    items.push(...mapSectionToGridItems(section, "webtoon", lang));
+  }
+  return buildSnapshotPage(
+    t(uiLang, "home.original"),
+    filterMatureGridItems(items, allowR18).slice(0, HOME_SNAPSHOT_PAGE_SIZE * 3),
+  );
+}
+
+/** Canvas：challengeTitleList 第一页快照（分页参数有效但无 genre/sort 过滤，只取第一页） */
+async function getCanvasFunctionPage(payload: HomePagePayload = {}): Promise<FunctionPageContract> {
+  const uiLang = await resolveUiLang();
+  const lang = await resolveHomeLang(payload);
+  const allowR18 = await loadR18Preference();
+  const hits = await fetchCanvasLatest(lang, HOME_SNAPSHOT_PAGE_SIZE);
+  const items: FunctionPageActionGridItem[] = hits.map((hit) => {
+    const titleNo = String(hit.titleNo);
+    const comicId = encodeComicId({ titleNo, type: "canvas", lang, href: "" });
+    return {
+      title: hit.title,
+      cover: {
+        url: hit.thumbnail || NOT_FOUND_IMAGE_URL,
+        path: `comic/${titleNo}/cover.jpg`,
+        extern: { titleNo, type: "canvas", lang },
+      },
+      action: {
+        type: "openComicInfo",
+        payload: { comicId, extern: { titleNo, type: "canvas", lang } },
+      },
+      raw: {
+        titleNo,
+        type: "canvas",
+        lang,
+        author: [hit.writingAuthorName, hit.pictureAuthorName].filter(Boolean).join(" / "),
+        mature: Boolean(hit.ageGradeNotice || hit.unsuitableForChildren),
+      },
+    } satisfies FunctionPageActionGridItem;
+  });
+  return buildSnapshotPage(t(uiLang, "home.canvas"), filterMatureGridItems(items, allowR18));
+}
+
+export async function getFunctionPage(
+  payload: HomePagePayload = {},
+): Promise<FunctionPageContract> {
+  const extern = toStringMap(payload.extern);
+  const id = readString(payload.id ?? extern.id ?? "recommend").trim() || "recommend";
+  if (id === "original") return getOriginalFunctionPage(payload);
+  if (id === "canvas") return getCanvasFunctionPage(payload);
+  if (id !== "recommend") throw new Error(`未知功能: ${id}`);
+  return getRecommendFunctionPage(payload);
+}
+
+export async function getPluginHomePagesBundle(
+  _payload: GetPluginHomePagesBundlePayload = {},
+): Promise<PluginHomePagesBundleContract> {
+  const [recommend, original, canvas] = await Promise.all([
+    getFunctionPage({ id: "recommend" }),
+    getFunctionPage({ id: "original" }),
+    getFunctionPage({ id: "canvas" }),
+  ]);
+  const tabs: PluginHomeTab[] = [
+    { id: "recommend", title: recommend.scheme.title, page: recommend },
+    { id: "original", title: original.scheme.title, page: original },
+    { id: "canvas", title: canvas.scheme.title, page: canvas },
+  ];
+  return {
+    source: PLUGIN_ID,
+    scheme: { version: "1.0.0", type: "homePagesBundle" },
+    data: { tabs },
+  };
+}
+
+export async function getPluginCloudFavoritePagesBundle(): Promise<PluginCloudFavoritePagesBundleContract> {
+  return {
+    source: PLUGIN_ID,
+    scheme: { version: "1.0.0", type: "cloudFavoritePagesBundle" },
+    data: { tabs: [] },
   };
 }

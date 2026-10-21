@@ -446,3 +446,73 @@ export async function fetchEpisodeImages(
     images,
   };
 }
+
+export type HomeRecommendSection = {
+  type: AppWebtoonType;
+  subtitle: string;
+  titles: Array<Record<string, unknown>>;
+};
+
+/**
+ * home.json 编辑精选分区（推荐位 + Original 题材分区 + Canvas 热门）。
+ * 单次快照，无分页；调用方按需截断。R18 过滤调用方做（保持与搜索一致的 allowR18 语义）。
+ */
+export async function fetchHomeRecommendSections(
+  lang: string,
+  limitPerSection = 10,
+): Promise<HomeRecommendSection[]> {
+  const result = await apiGet(`home.json?${commonQs(lang)}`);
+  const sections: HomeRecommendSection[] = [];
+  const limit = Math.max(1, limitPerSection);
+  const titlesOf = (value: unknown): Array<Record<string, unknown>> => {
+    const list = Array.isArray(value)
+      ? value
+      : value && typeof value === "object"
+        ? (value as Record<string, unknown>).titleList
+        : undefined;
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((v): v is Record<string, unknown> => !!v && typeof v === "object")
+      .slice(0, limit);
+  };
+  // 推荐位：banner 链向的 Original 作品
+  const banners = (result.topBanner as Record<string, unknown> | undefined)?.bannerList;
+  if (Array.isArray(banners)) {
+    const titles = banners
+      .map((b) => b as Record<string, unknown>)
+      .filter((b) => Number(b.linkTitleNo) > 0)
+      .map((b) => ({
+        titleNo: Number(b.linkTitleNo),
+        title: String(b.subtitle ?? "").trim() || `#${b.linkTitleNo}`,
+        thumbnail: String(b.imageUrl ?? ""),
+      }));
+    if (titles.length)
+      sections.push({ type: "webtoon", subtitle: "", titles: titles.slice(0, limit) });
+  }
+  for (const [value, fallbackType] of [
+    [result.genre1, "webtoon"],
+    [result.genre2, "webtoon"],
+    [result.topRated, "webtoon"],
+    [result.challengeLeague, "canvas"],
+  ] as const) {
+    const titles = titlesOf(value);
+    if (!titles.length) continue;
+    const o = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+    sections.push({
+      type: fallbackType,
+      subtitle: String(o.sectionTitle ?? o.header ?? "").trim(),
+      titles,
+    });
+  }
+  return sections;
+}
+
+/** Canvas 新作快照：challengeTitleList 第一页（startIndex=1 + pageSize；genre/sort 参数实测被忽略，不传） */
+export async function fetchCanvasLatest(lang: string, pageSize = 20): Promise<AppSearchHit[]> {
+  const result = await apiGet(
+    `challengeTitleList.json?startIndex=1&pageSize=${Math.max(1, Math.min(50, pageSize))}&${commonQs(lang)}`,
+  );
+  const raw = result.titleList as { titles?: Array<Record<string, unknown>> } | undefined;
+  const list = Array.isArray(raw?.titles) ? raw.titles : [];
+  return list.map((item) => mapHit(item, "canvas")).filter((hit) => hit.titleNo > 0 && hit.title);
+}

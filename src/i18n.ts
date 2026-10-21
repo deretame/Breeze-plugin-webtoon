@@ -43,6 +43,9 @@ const en: Dict = {
   "allow.comments": "WEBTOON does not support comments yet",
   "allow.like": "WEBTOON does not support likes yet",
   "allow.collected": "WEBTOON does not support favorites yet",
+  "home.recommend": "Recommended",
+  "home.original": "Originals",
+  "home.canvas": "Canvas",
 };
 
 const zhHant: Dict = {
@@ -76,6 +79,9 @@ const zhHant: Dict = {
   "allow.comments": "WEBTOON 暫不支援評論",
   "allow.like": "WEBTOON 暫不支援點讚",
   "allow.collected": "WEBTOON 暫不支援收藏",
+  "home.recommend": "推薦",
+  "home.original": "原創",
+  "home.canvas": "Canvas",
 };
 
 const zhHans: Dict = {
@@ -109,8 +115,10 @@ const zhHans: Dict = {
   "allow.comments": "WEBTOON 暂不支持评论",
   "allow.like": "WEBTOON 暂不支持点赞",
   "allow.collected": "WEBTOON 暂不支持收藏",
+  "home.recommend": "推荐",
+  "home.original": "原创",
+  "home.canvas": "Canvas",
 };
-
 const th: Dict = {
   ...en,
   "plugin.describe": "แหล่ง WEBTOON เว็บอย่างเป็นทางการ",

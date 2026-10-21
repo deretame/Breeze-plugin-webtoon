@@ -3,9 +3,10 @@
   "uuid": "7efa2a7c-da0f-4db1-9167-98045ae37fdb",
   "iconUrl": "https://webtoons-static.pstatic.net/image/favicon/favicon.ico",
   "describe": "WEBTOON official App API source (Original + Canvas)",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "home": "https://www.webtoons.com",
   "updateUrl": "",
   "npmName": "breeze-plugin-webtoon",
+  "haveHome": true,
   "function": []
 }
